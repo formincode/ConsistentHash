@@ -13,68 +13,51 @@ import java.util.TreeMap;
 public class ConsistentHashRouter {
     private final SortedMap<Long, ReplicaNode> ring = new TreeMap<>();
 
-    /**
-     *
-     * @param pNodes collections of physical nodes
-     * @param vNodeCount amounts of virtual nodes
-     */
-    public ConsistentHashRouter(Collection<Node> pNodes, int vNodeCount) {
-        if (pNodes != null) {
-            for (Node pNode : pNodes) {
-                addNode(pNode, vNodeCount);
+    public ConsistentHashRouter(Collection<Node> phyicalNodes, int replicationFactor) {
+        if (phyicalNodes != null) {
+            for (Node phyicalNode : phyicalNodes) {
+                addNode(phyicalNode, replicationFactor);
             }
         }
     }
 
-    /**
-     * add physic node to the hash ring with some virtual nodes
-     * @param pNode physical node needs added to hash ring
-     * @param vNodeCount the number of virtual node of the physical node. Value should be greater than or equals to 0
-     */
-    public void addNode(Node pNode, int vNodeCount) {
-        if (vNodeCount < 0) throw new IllegalArgumentException("illegal virtual node counts :" + vNodeCount);
-        int existingReplicas = getExistingReplicas(pNode);
-        for (int i = 0; i < vNodeCount; i++) {
-            ReplicaNode vNode = new ReplicaNode(pNode, i + existingReplicas);
-            ring.put(hash(vNode.getKey()), vNode);
+    public void addNode(Node phyicalNode, int replicationFactor) {
+        if (replicationFactor < 0) throw new IllegalArgumentException("illegal replica node counts :" + replicationFactor);
+        int existingReplicas = getExistingReplicas(phyicalNode);
+        for (int i = 0; i < replicationFactor; i++) {
+            ReplicaNode replicaNode = new ReplicaNode(phyicalNode, i + existingReplicas);
+            ring.put(hash(replicaNode.getKey()), replicaNode);
         }
     }
 
-    /**
-     * remove the physical node from the hash ring
-     * @param pNode
-     */
-    public void removeNode(Node pNode) {
+    public void removeNode(Node phyicalNode) {
         Iterator<Long> it = ring.keySet().iterator();
         while (it.hasNext()) {
             Long key = it.next();
             ReplicaNode replicaNode = ring.get(key);
-            if (replicaNode.isVirtualNodeOf(pNode)) {
+            if (replicaNode.isVirtualNodeOf(phyicalNode)) {
                 it.remove();
             }
         }
     }
 
-    /**
-     * with a specified key, route the nearest Node instance in the current hash ring
-     * @param objectKey the object key to find a nearest Node
-     * @return
-     */
     public Node routeNode(String objectKey) {
         if (ring.isEmpty()) {
             return null;
         }
         Long hashVal = hash(objectKey);
+        //find the submap where the keys of the submap are less than the hash of the objectKey
         SortedMap<Long, ReplicaNode> tailMap = ring.tailMap(hashVal);
+        //either use the first entry in the sub map or the first key thus a ring going clockwise
         Long nodeHashVal = !tailMap.isEmpty() ? tailMap.firstKey() : ring.firstKey();
         return ring.get(nodeHashVal).getPhysicalNode();
     }
 
 
-    public int getExistingReplicas(Node pNode) {
+    public int getExistingReplicas(Node phyicalNode) {
         int replicas = 0;
-        for (ReplicaNode vNode : ring.values()) {
-            if (vNode.isVirtualNodeOf(pNode)) {
+        for (ReplicaNode replicaNode : ring.values()) {
+            if (replicaNode.isVirtualNodeOf(phyicalNode)) {
                 replicas++;
             }
         }
@@ -82,8 +65,9 @@ public class ConsistentHashRouter {
     }
 
 
+    //we decouple the key from the # of nodes
     public long hash(String key) {
-        return Hashing.md5().hashString(key, Charset.defaultCharset()).asLong();
+        return Math.abs(Hashing.md5().hashString(key, Charset.defaultCharset()).asLong());
     }
 
 }

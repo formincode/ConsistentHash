@@ -13,7 +13,7 @@ public class Test {
 
         //hash them to hash ring
         ConsistentHashRouter consistentHashRouter =
-            new ConsistentHashRouter(Arrays.asList(node1,node2,node3,node4),10);
+            new ConsistentHashRouter(Arrays.asList(node1,node2,node3,node4),3  );
 
         //we have 5 requester ip, we are trying them to route to one service node
         String requestIP1 = "192.168.0.1";
@@ -26,7 +26,7 @@ public class Test {
 
         ServiceNode node5 = new ServiceNode("IDC2","127.0.0.1",8080);//put new service online
         System.out.println("-------------putting new node online " +node5.getKey()+"------------");
-        consistentHashRouter.addNode(node5,10);
+        consistentHashRouter.addNode(node5,3);
 
         goRoute(consistentHashRouter,requestIP1,requestIP2,requestIP3,requestIP4,requestIP5);
 
